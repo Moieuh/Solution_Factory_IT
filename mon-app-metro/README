@@ -1,0 +1,15 @@
+Lancer l'application
+    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro
+    npm run dev
+
+Lancer l'application
+    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro\back-end
+    python  app.py
+
+
+
+Pour créer le fichier json des stations de metro
+    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro\Information
+    python convert_to_json.py
+    copy stations.json ..\..\public\
+
