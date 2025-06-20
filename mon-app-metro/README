@@ -1,10 +1,10 @@
 Lancer l'application
-    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro
-    npm run dev
+    cd .\mon-app-metro\back-end\
+    app.py
 
 Lancer l'application
-    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro\back-end
-    python  app.py
+    cd .\mon-app-metro\mon-app-metro\
+    npm run dev
 
 
 

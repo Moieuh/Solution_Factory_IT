@@ -95,13 +95,23 @@ const formatTime = (seconds) => {
 
 const lineColor = (line) => {
   const colors = {
-    "1": "#FFD700",      // Jaune
-    "2": "#5DADE2",      // Bleu clair
-    "6": "#2ECC71",      // Vert
-    "12": "#9B59B6",     // Violet
-    "14": "#E91E63",     // Magenta
-    // Ajoute d'autres lignes ici...
-  }
+  "1":  "#FFCE00",  // Jaune
+  "2":  "#0064B0",  // Bleu foncé
+  "3":  "#9F9825",  // Vert olive
+  "3bis": "#98D4E2", // Bleu clair
+  "4":  "#C04191",  // Rose fuchsia
+  "5":  "#F28E42",  // Orange
+  "6":  "#83C491",  // Vert clair
+  "7":  "#F3A4BA",  // Rose
+  "7bis": "#83C491", // Même couleur que la 6 (vert clair)
+  "8":  "#CEADD2",  // Violet pâle
+  "9":  "#D5C900",  // Jaune citron
+  "10": "#E3B32A",  // Jaune orangé
+  "11": "#8E5E25",  // Marron
+  "12": "#00814F",  // Vert foncé
+  "13": "#98D4E2",  // Bleu clair
+  "14": "#662483",  // Violet foncé
+};
   return colors[line] || "#CCCCCC"  // gris par défaut
 }
 
