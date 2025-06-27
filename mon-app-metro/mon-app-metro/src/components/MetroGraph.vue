@@ -29,15 +29,16 @@
     />
     <!-- 🔁 Arêtes de l’ACPM -->
     <line
-      v-for="(segment, idx) in getMSTSegments"
-      :key="'mst-' + idx"
-      :x1="segment.split(' ')[0].split(',')[0]"
-      :y1="segment.split(' ')[0].split(',')[1]"
-      :x2="segment.split(' ')[1].split(',')[0]"
-      :y2="segment.split(' ')[1].split(',')[1]"
-      stroke="#00ccff"
-      stroke-width="2"
-    />
+  v-for="(seg, idx) in getMSTSegments"
+  :key="'mst-' + idx"
+  :x1="seg.x1"
+  :y1="seg.y1"
+  :x2="seg.x2"
+  :y2="seg.y2"
+  :stroke="seg.color"
+  stroke-width="2"
+/>
+
 
     <!-- Cercles des stations -->
     <circle
@@ -124,16 +125,7 @@ const height = 1000
 const mstEdges = ref([])
 const mstTotalWeight = ref(null)
 
-// 🔁 Rechercher les coordonnées des deux stations liées par une arête
-const getMSTSegments = computed(() => {
-  return mstEdges.value.map(([src, dst]) => {
-    const s1 = props.stations.find(s => s.id === src)
-    const s2 = props.stations.find(s => s.id === dst)
-    if (!s1 || !s2) return null
-    return `${s1.x},${s1.y} ${s2.x},${s2.y}`
-  }).filter(Boolean)
-})
-
+// 🎨 Couleurs par ligne
 const lineColor = (line) => {
   const colors = {
     "1": "#FFCE00", "2": "#0064B0", "3": "#9F9825", "3bis": "#98D4E2",
@@ -144,6 +136,21 @@ const lineColor = (line) => {
   return colors[line] || "#FF0000"
 }
 
+// 🔁 Segments à dessiner pour l’ACPM (x1,y1,x2,y2, couleur)
+const getMSTSegments = computed(() => {
+  return mstEdges.value.map(({ src, dst, line }) => {
+    const s1 = props.stations.find(s => s.id === src)
+    const s2 = props.stations.find(s => s.id === dst)
+    if (!s1 || !s2) return null
+    return {
+      x1: s1.x, y1: s1.y,
+      x2: s2.x, y2: s2.y,
+      color: lineColor(line)
+    }
+  }).filter(Boolean)
+})
+
+// 🔁 Segments pour les trajets Dijkstra
 const getSegmentsByLine = () => {
   if (!props.path || props.path.length < 2 || !props.stations.length) return []
 
@@ -180,7 +187,7 @@ const getSegmentsByLine = () => {
   return segments
 }
 
-// Chargement progressif de l'ACPM
+// 📡 Appel à l'API /mst
 const loadMST = async () => {
   mstEdges.value = []
   mstTotalWeight.value = null
@@ -191,10 +198,18 @@ const loadMST = async () => {
     const edges = data.edges
     mstTotalWeight.value = data.total_weight
 
-    // Animation progressive des arêtes
     for (let i = 0; i < edges.length; i++) {
-      mstEdges.value.push([edges[i][0], edges[i][1]])
-      await new Promise(r => setTimeout(r, 50)) // 50ms entre chaque trait
+      const [src, dst] = edges[i]
+      const s1 = props.stations.find(s => s.id === src)
+      const s2 = props.stations.find(s => s.id === dst)
+
+      let line = null
+      if (s1 && s2) {
+        line = s1.line === s2.line ? s1.line : (s1.line || s2.line)
+      }
+
+      mstEdges.value.push({ src, dst, line })
+      await new Promise(r => setTimeout(r, 50)) // animation progressive
     }
   } catch (e) {
     alert("Erreur lors du chargement de l'ACPM.")
