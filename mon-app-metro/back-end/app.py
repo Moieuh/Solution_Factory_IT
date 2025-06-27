@@ -3,7 +3,7 @@ from flask_cors import CORS
 import math
 
 app = Flask(__name__)
-CORS(app)  #
+CORS(app)
 
 ### --- Classes et Fonctions de Graphe --- ###
 
@@ -46,6 +46,7 @@ class Graph:
 
         return d, parent
 
+
 def chemin_depuis_parents(parent, source, destination):
     chemin = []
     courant = destination
@@ -73,22 +74,59 @@ def lire_metro_txt(fichier_path):
                 parts = line.split()
                 if len(parts) >= 4:
                     try:
-                        src = parts[1].strip().zfill(4)  
-                        dst = parts[2].strip().zfill(4)  
+                        src = parts[1].strip().zfill(4)
+                        dst = parts[2].strip().zfill(4)
                         poids = int(parts[3])
                         arcs.append((src, dst, poids))
-                        arcs.append((dst, src, poids))
+                        arcs.append((dst, src, poids))  # rendre non orienté
                     except ValueError:
                         continue
     return list(nodes), arcs
 
-
-
-
-### --- Chargement du graphe une fois au démarrage --- ###
+### --- Chargement du graphe --- ###
 
 nodes, arcs = lire_metro_txt("metro.txt")
 graphe = Graph(nodes, arcs)
+
+### --- Fonctions de connectivité --- ###
+
+def is_graph_connected(graph):
+    visited = set()
+    # on ignore les nœuds sans voisins (probablement isolés ou erreurs)
+    nodes = [n for n in graph.nodes if graph.adjacence.get(n)]
+    if not nodes:
+        return True
+
+    def dfs(node):
+        visited.add(node)
+        for neighbor in graph.adjacence.get(node, []):
+            if neighbor not in visited:
+                dfs(neighbor)
+
+    dfs(nodes[0])
+    print(f"[DEBUG] Visités : {len(visited)} / {len(nodes)}")
+    return len(visited) == len(nodes)
+
+
+def composantes_connexes(graph):
+    visited = set()
+    composantes = []
+
+    for node in graph.nodes:
+        if node not in visited and graph.adjacence.get(node):
+            composante = set()
+
+            def dfs(n):
+                visited.add(n)
+                composante.add(n)
+                for voisin in graph.adjacence.get(n, []):
+                    if voisin not in visited:
+                        dfs(voisin)
+
+            dfs(node)
+            composantes.append(list(composante))
+
+    return composantes
 
 ### --- API Flask --- ###
 
@@ -108,6 +146,21 @@ def shortest_path():
     return jsonify({
         "path": chemin,
         "total_time": total_time
+    })
+
+
+@app.route('/check_connectivity', methods=['GET'])
+def check_connectivity():
+    result = is_graph_connected(graphe)
+    return jsonify({"connected": result})
+
+
+@app.route('/connected_components', methods=['GET'])
+def connected_components():
+    comps = composantes_connexes(graphe)
+    return jsonify({
+        "component_count": len(comps),
+        "components": comps
     })
 
 ### --- Lancement --- ###
