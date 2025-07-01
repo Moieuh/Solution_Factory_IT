@@ -46,6 +46,41 @@ class Graph:
 
         return d, parent
 
+### algo de Kruskal  pour l'arbre couvrant minimum ###
+    def kruskal(self):
+        parent = {}
+        rank = {}
+
+        def find(n):
+            if parent[n] != n:
+                parent[n] = find(parent[n])
+            return parent[n]
+
+        def union(n1, n2):
+            r1, r2 = find(n1), find(n2)
+            if r1 != r2:
+                if rank[r1] < rank[r2]:
+                    parent[r1] = r2
+                else:
+                    parent[r2] = r1
+                    if rank[r1] == rank[r2]:
+                        rank[r1] += 1
+
+        for node in self.nodes:
+            parent[node] = node
+            rank[node] = 0
+
+        mst_edges = []
+        total_weight = 0
+
+        for src, dst, weight in sorted(self.arcs, key=lambda x: x[2]):
+            if find(src) != find(dst):
+                union(src, dst)
+                mst_edges.append((src, dst, weight))
+                total_weight += weight
+
+        return mst_edges, total_weight
+
 
 def chemin_depuis_parents(parent, source, destination):
     chemin = []
@@ -92,7 +127,6 @@ graphe = Graph(nodes, arcs)
 
 def is_graph_connected(graph):
     visited = set()
-    # on ignore les nœuds sans voisins (probablement isolés ou erreurs)
     nodes = [n for n in graph.nodes if graph.adjacence.get(n)]
     if not nodes:
         return True
@@ -161,6 +195,15 @@ def connected_components():
     return jsonify({
         "component_count": len(comps),
         "components": comps
+    })
+
+
+@app.route('/mst', methods=['GET'])
+def minimum_spanning_tree():
+    edges, total_weight = graphe.kruskal()
+    return jsonify({
+        "edges": edges,
+        "total_weight": total_weight
     })
 
 ### --- Lancement --- ###
