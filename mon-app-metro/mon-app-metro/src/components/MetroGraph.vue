@@ -1,24 +1,23 @@
 <template>
+  <!-- Bouton -->
   <div class="flex justify-end mb-2">
     <div class="w-full flex justify-center">
-      <button
-        @click="loadMST"
-        class="codepen-button"
-      >
+      <button @click="loadMST" class="codepen-button">
         <span>Afficher l'ACPM</span>
       </button>
-      <div v-if="mstTotalWeight !== null" class="text-center text-white mt-2">
-  Poids total de l’ACPM : {{ mstTotalWeight }} secondes
-</div>
-
-
     </div>
   </div>
-  <svg class="w-full h-auto" :viewBox="'0 0 ' + width + ' ' + height">
-    <!-- Plan de fond -->
-    <image href="/metrof_r.png" :width="width" :height="height" />
 
-    <!-- 🔁 Chemins colorés -->
+  <!-- Poids total -->
+  <div v-if="mstTotalWeight !== null" class="text-center text-white mt-2">
+    Poids total de l’ACPM : {{ mstTotalWeight }} secondes
+  </div>
+
+  <!-- Plan SVG -->
+  <svg class="w-full h-auto" :viewBox="'0 0 ' + width + ' ' + height">
+    <!-- Image de fond -->
+
+    <!-- 🔁 Segments du chemin Dijkstra (par ligne) -->
     <polyline
       v-for="(segment, index) in getSegmentsByLine()"
       :key="index"
@@ -27,20 +26,22 @@
       :stroke="lineColor(segment.line)"
       stroke-width="4"
     />
+
     <!-- 🔁 Arêtes de l’ACPM -->
     <line
-  v-for="(seg, idx) in getMSTSegments"
-  :key="'mst-' + idx"
-  :x1="seg.x1"
-  :y1="seg.y1"
-  :x2="seg.x2"
-  :y2="seg.y2"
-  :stroke="seg.color"
-  stroke-width="2"
-/>
+      v-for="(seg, idx) in getMSTSegments"
+      :key="'mst-' + idx"
+      :x1="seg.x1"
+      :y1="seg.y1"
+      :x2="seg.x2"
+      :y2="seg.y2"
+      :stroke="seg.color"
+      stroke-width="2"
+    >
+      <title>{{ seg.tooltip }}</title>
+    </line>
 
-
-    <!-- Cercles des stations -->
+    <!-- ⚪ Stations -->
     <circle
       v-for="station in stations"
       :key="station.id"
@@ -55,6 +56,7 @@
     </circle>
   </svg>
 </template>
+
 <style scoped>
 /* From Uiverse.io by SelfMadeSystem */ 
 /* Yoinked from CodePen, but improved the animation
@@ -138,17 +140,19 @@ const lineColor = (line) => {
 
 // 🔁 Segments à dessiner pour l’ACPM (x1,y1,x2,y2, couleur)
 const getMSTSegments = computed(() => {
-  return mstEdges.value.map(({ src, dst, line }) => {
+  return mstEdges.value.map(({ src, dst, line, weight, name1, name2 }) => {
     const s1 = props.stations.find(s => s.id === src)
     const s2 = props.stations.find(s => s.id === dst)
     if (!s1 || !s2) return null
     return {
       x1: s1.x, y1: s1.y,
       x2: s2.x, y2: s2.y,
-      color: lineColor(line)
+      color: lineColor(line),
+      tooltip: `${name1} ↔ ${name2}\nLigne ${line}\n${weight} sec`
     }
   }).filter(Boolean)
 })
+
 
 // 🔁 Segments pour les trajets Dijkstra
 const getSegmentsByLine = () => {
@@ -195,11 +199,11 @@ const loadMST = async () => {
   try {
     const res = await fetch('http://127.0.0.1:5000/mst')
     const data = await res.json()
-    const edges = data.edges
+    const edges = data.edges // [src, dst, weight]
     mstTotalWeight.value = data.total_weight
 
     for (let i = 0; i < edges.length; i++) {
-      const [src, dst] = edges[i]
+      const [src, dst, weight] = edges[i]
       const s1 = props.stations.find(s => s.id === src)
       const s2 = props.stations.find(s => s.id === dst)
 
@@ -208,11 +212,20 @@ const loadMST = async () => {
         line = s1.line === s2.line ? s1.line : (s1.line || s2.line)
       }
 
-      mstEdges.value.push({ src, dst, line })
+      mstEdges.value.push({
+        src,
+        dst,
+        weight,
+        line,
+        name1: s1?.name || src,
+        name2: s2?.name || dst
+      })
+
       await new Promise(r => setTimeout(r, 50)) // animation progressive
     }
   } catch (e) {
     alert("Erreur lors du chargement de l'ACPM.")
   }
 }
+
 </script>
