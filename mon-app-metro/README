@@ -11,8 +11,8 @@ Lancer l'application
 
 
 Pour créer le fichier json des stations de metro avec :
-        - nodes: noms des stations
-        - edges: couples (station1, station2, durée en secondes)
+        - nodes: noms des stations (numero sncf de la gare, nom de la station, qu'elle stations disponible, coordonnée x, coordonnée y )
+        - edges: couples (station1, station2, durée en secondes, nom de la ligne)
     
     cd mon-app-metro\back-end
     python gtfs_to_graph.py
@@ -25,3 +25,4 @@ Pour créer le fichier json des stations de metro avec :
 
 extention
    pip install networkx (pour la représentation des graphes)
+   

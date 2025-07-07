@@ -46,19 +46,27 @@ def check_connectivity():
 def get_mst():
     G = nx.Graph()
     for edge in edges:
+        if edge.get("type") != "ride":
+            continue
         src = edge["from"]
         dst = edge["to"]
         weight = edge["duration"]
-        G.add_edge(src, dst, weight=weight)
+        line = edge.get("line", "?")
+        G.add_edge(src, dst, weight=weight, line=line)
 
     mst = nx.minimum_spanning_tree(G, algorithm="kruskal")
-    mst_edges = [[u, v, d["weight"]] for u, v, d in mst.edges(data=True)]
-    total_weight = sum(d["weight"] for _, _, d in mst.edges(data=True))
+    
+    mst_edges = []
+    for u, v, data in mst.edges(data=True):
+        mst_edges.append([u, v, data["weight"], data.get("line", "?")])
+    
+    total_weight = sum(data["weight"] for _, _, data in mst.edges(data=True))
 
     return jsonify({
         "edges": mst_edges,
         "total_weight": total_weight
     })
+
 
 @app.route("/debug_components", methods=["GET"])
 def debug_components():

@@ -4,6 +4,8 @@ import SearchPanel from './components/SearchPanel.vue'
 import MetroGraph from './components/MetroGraph.vue'
 import runDijkstra from './utils/rundijkstra.js' 
 import runDijkstraTimeAware from './utils/runDijkstra.js'
+import 'leaflet/dist/leaflet.css'
+
 
 
 const stations = ref([])
@@ -13,6 +15,9 @@ const totalTime = ref(null)
 const checkPathResult = ref(null)
 const arrivalTimes = ref({})
 const steps = ref([])
+
+
+
 
 
 
@@ -106,7 +111,7 @@ const formatTime = (seconds) => {
   return `${min} min ${sec.toString().padStart(2, '0')} s`
 }
 
-const lineColor = (line) => {
+const lineColors = (line) => {
   const colors = {
     "1": "#FFCE00", "2": "#0064B0", "3": "#9F9825", "3bis": "#98D4E2",
     "4": "#C04191", "5": "#F28E42", "6": "#83C491", "7": "#F3A4BA", "7bis": "#83C491",
@@ -120,7 +125,11 @@ const lineColor = (line) => {
   return colors[firstLine] || "#CCCCCC"
 }
 
-
+function lineColor(line) {
+  if (!line) return 'white'
+  const firstLine = line.split(',')[0].trim()
+  return lineColors[firstLine] || 'white'
+}
 
 
 const stepLine = (stationId, index) => {
@@ -153,7 +162,7 @@ const stepLine = (stationId, index) => {
     <div class="flex flex-col items-center">
       <div
         class="w-4 h-4 rounded-full"
-        :style="{ backgroundColor: lineColor(step.line) }"
+        :style="{ backgroundColor: lineColors(step.line) }"
       ></div>
       <div v-if="index < steps.length - 1" class="w-px h-6 bg-gray-500"></div>
     </div>
@@ -162,7 +171,7 @@ const stepLine = (stationId, index) => {
     <div>
       <p class="text-sm font-medium">
         {{ stationName(step.to) }}
-        <span class="ml-2 font-semibold" :style="{ color: lineColor(step.line) }">
+        <span class="ml-2 font-semibold" :style="{ color: lineColors(step.line) }">
           (Ligne {{ step.line || '?' }})
         </span>
       </p>
@@ -200,10 +209,14 @@ const stepLine = (stationId, index) => {
       </div>
     </aside>
 
-    <main class="flex-1 overflow-auto bg-black flex justify-center items-start p-4">
-      <div class="scale-[0.8] origin-top-left w-[950px]">
-        <MetroGraph :stations="stations" :path="path" />
-      </div>
-    </main>
+    <main class="flex-1 bg-black">
+  <MetroGraph
+    :stations="stations"
+    :edges="edges"
+    :mst="mst"
+    :path="path"
+  />
+</main>
+
   </div>
 </template>

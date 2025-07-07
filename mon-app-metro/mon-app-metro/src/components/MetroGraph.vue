@@ -1,61 +1,66 @@
-<template>
-  <!-- Bouton -->
-  <div class="flex justify-end mb-2">
-    <div class="w-full flex justify-center">
-      <button @click="loadMST" class="codepen-button">
+<template v-if="isMapReady">
+  <div class="flex flex-col h-[calc(100vh-20px)] w-full">
+    
+    <!-- 🔘 Bouton et poids ACPM -->
+    <div class="flex flex-col items-center justify-start p-4 text-white">
+      <button @click="loadMST" class="codepen-button mb-2">
         <span>Afficher l'ACPM</span>
       </button>
+      <div v-if="mstTotalWeight !== null" class="text-sm mt-1">
+        Poids total de l’ACPM : {{ mstTotalWeight }} secondes
+      </div>
+    </div>
+
+    <!-- 🗺️ Carte avec SVG overlay (grande hauteur et largeur) -->
+    <div class="relative flex-grow w-full">
+      <!-- 🌍 Carte Leaflet -->
+      <div id="map" class="absolute inset-0 z-0"></div>
+
+      <!-- 📍 SVG Overlay -->
+      <svg id="overlay-svg" class="absolute inset-0 w-full h-full z-10 pointer-events-none">
+        <!-- 🔁 Segments du chemin Dijkstra -->
+        <line
+          v-for="(segment, index) in projectedSegments"
+          :key="index"
+          :x1="segment.x1"
+          :y1="segment.y1"
+          :x2="segment.x2"
+          :y2="segment.y2"
+          :stroke="lineColor(segment.line)"
+          stroke-width="4"
+        />
+
+        <!-- 🔁 Arêtes de l’ACPM -->
+        <line
+          v-for="(seg, idx) in getMSTSegments"
+          :key="'mst-' + idx"
+          :x1="seg.x1"
+          :y1="seg.y1"
+          :x2="seg.x2"
+          :y2="seg.y2"
+          :stroke="seg.color"
+          stroke-width="2"
+        >
+          <title>{{ seg.tooltip }}</title>
+        </line>
+
+        <!-- ⚪ Stations -->
+        <circle
+          v-for="station in projectedStations"
+          :key="station.id"
+          :cx="station.x"
+          :cy="station.y"
+          r="5"
+          :fill="getStationColor(station)"
+          stroke="white"
+          stroke-width="2"
+          fill-opacity="1"
+        >
+          <title>{{ station.name }} (Ligne {{ station.line }})</title>
+        </circle>
+      </svg>
     </div>
   </div>
-
-  <!-- Poids total -->
-  <div v-if="mstTotalWeight !== null" class="text-center text-white mt-2">
-    Poids total de l’ACPM : {{ mstTotalWeight }} secondes
-  </div>
-
-  <!-- Plan SVG -->
-  <svg class="w-full h-auto" :viewBox="'0 0 ' + width + ' ' + height">
-    <!-- Image de fond -->
-
-    <!-- 🔁 Segments du chemin Dijkstra (par ligne) -->
-    <polyline
-      v-for="(segment, index) in getSegmentsByLine()"
-      :key="index"
-      :points="segment.points"
-      fill="none"
-      :stroke="lineColor(segment.line)"
-      stroke-width="4"
-    />
-
-    <!-- 🔁 Arêtes de l’ACPM -->
-    <line
-      v-for="(seg, idx) in getMSTSegments"
-      :key="'mst-' + idx"
-      :x1="seg.x1"
-      :y1="seg.y1"
-      :x2="seg.x2"
-      :y2="seg.y2"
-      :stroke="seg.color"
-      stroke-width="2"
-    >
-      <title>{{ seg.tooltip }}</title>
-    </line>
-
-    <!-- ⚪ Stations -->
-    <circle
-  v-for="station in stations"
-  :key="station.id"
-  :cx="station.x"
-  :cy="station.y"
-  r="4"
-  :fill="path.includes(station.id) ? 'white' : 'gray'"
-  stroke="black"
-  stroke-width="1"
->
-  <title>{{ station.name }} (Ligne {{ station.line }})</title>
-</circle>
-
-  </svg>
 </template>
 
 <style scoped>
@@ -76,6 +81,35 @@ so that it is smooth among other more minor things */
   padding: 3px;
   isolation: isolate;
 }
+
+#map,
+#overlay-svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+}
+
+
+
+circle {
+  r: 6;
+  stroke: white;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px white) drop-shadow(0 0 2px white);
+  transition: r 0.2s;
+}
+
+svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+
+
 
 .codepen-button::before {
   content: "";
@@ -114,41 +148,194 @@ so that it is smooth among other more minor things */
   height: 100%;
 }
 </style>
+
+
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch} from 'vue'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import { nextTick } from 'vue'
+
+const isMapReady = ref(false)
+const projectionKey = ref(0)
 
 const props = defineProps({
   stations: Array,
   path: Array,
-  edges: Array  // nécessaire pour getSegmentsByLine
+  edges: Array
 })
-
-const width = 950
-const height = 1000
 
 const mstEdges = ref([])
 const mstTotalWeight = ref(null)
 
-// 🎨 Couleurs par ligne
-const lineColor = (line) => {
-  const colors = {
-    "1": "#FFCE00", "2": "#0064B0", "3": "#9F9825", "3bis": "#98D4E2",
-    "4": "#C04191", "5": "#F28E42", "6": "#83C491", "7": "#F3A4BA",
-    "7bis": "#83C491", "8": "#CEADD2", "9": "#D5C900", "10": "#E3B32A",
-    "11": "#8E5E25", "12": "#00814F", "13": "#98D4E2", "14": "#662483",
+// 📌 Carte Leaflet et projecteur
+const mapRef = ref(null)
+const project = ref(() => ({ x: 0, y: 0 }))
+
+
+
+onMounted(() => {
+  const map = L.map('map', {
+    center: [48.8566, 2.3522],
+    zoom: 12,
+    zoomControl: false,
+    attributionControl: false
+  })
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap & CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 18
+  }).addTo(map)
+
+  mapRef.value = map
+
+  const updateProjection = () => {
+    project.value = (lat, lon) => {
+  const point = map.latLngToContainerPoint([lat, lon])
+  return { x: point.x, y: point.y }
   }
-  return colors[line] || "#FF0000"
+
+
+    projectionKey.value++
+    console.log("🔄 updateProjection called", new Date().toLocaleTimeString())
+  }
+
+  // ✅ Appelé sur chaque déplacement (pan)
+  map.on('move', () => {
+    const pane = map.getPane('overlayPane')
+    const svg = document.getElementById('overlay-svg')
+    if (svg && pane) {
+      const transform = window.getComputedStyle(pane).transform
+      svg.style.transform = transform
+    }
+
+    updateProjection() // ✅ crucial
+  })
+
+  map.on('zoom', updateProjection)
+  map.on('resize', updateProjection)
+
+  setTimeout(async () => {
+    updateProjection()
+    await nextTick()
+    isMapReady.value = true
+    console.log("✅ Carte prête, projection activée")
+  }, 250)
+})
+
+
+
+
+// 🎨 Couleurs par ligne
+const lineColors = {
+  "1": "#FFCD00", "2": "#003CA6", "3": "#837902", "3bis": "#6EC4E8",
+  "4": "#CF009E", "5": "#FF7E2E", "6": "#6ECA97", "7": "#FA9ABA", "7bis": "#6EC4E8",
+  "8": "#C5A3C5", "9": "#B6BD00", "10": "#C9910D", "11": "#704B1C",
+  "12": "#007852", "13": "#6EC4E8", "14": "#62259D"
 }
 
-// 🔁 Segments à dessiner pour l’ACPM (x1,y1,x2,y2, couleur)
+const lineColor = (line) => {
+  const first = line?.split(',')[0].trim()
+  return lineColors[first] || 'white'
+}
+
+// 📍 Stations projetées
+const projectedStations = computed(() => {
+  projectionKey.value // ❗ dépendance forcée
+
+  if (!mapRef.value || typeof project.value !== 'function') return []
+
+  return props.stations
+    .filter(s => typeof s.x === 'number' && typeof s.y === 'number')
+    .map(s => {
+      const { x, y } = project.value(s.x, s.y)
+      return { ...s, x, y }
+    })
+})
+
+
+
+
+// 🚇 Segments du trajet Dijkstra projetés
+const projectedSegments = computed(() => {
+  projectionKey.value  // ✅ déclenche recompute
+
+  if (!props.path || props.path.length < 2) return []
+  const segments = []
+
+  for (let i = 0; i < props.path.length - 1; i++) {
+    const fromId = props.path[i]
+    const toId = props.path[i + 1]
+
+    const from = props.stations.find(s => s.id === fromId)
+    const to = props.stations.find(s => s.id === toId)
+    if (!from || !to) continue
+
+    const edge = props.edges.find(e =>
+      (e.from === fromId && e.to === toId) ||
+      (e.from === toId && e.to === fromId)
+    )
+
+    const line = (edge?.line || '?').split(',')[0].trim()
+    const p1 = project.value(from.x, from.y) // ✅ appel correct
+    const p2 = project.value(to.x, to.y)
+
+    segments.push({
+      line,
+      x1: p1.x,
+      y1: p1.y,
+      x2: p2.x,
+      y2: p2.y
+    })
+  }
+
+  return segments
+})
+
+
+// 🧠 Ligne utilisée dans le trajet par station
+const pathLineByStation = computed(() => {
+  const map = {}
+  for (let i = 0; i < props.path.length - 1; i++) {
+    const fromId = props.path[i]
+    const toId = props.path[i + 1]
+    const edge = props.edges.find(e =>
+      (e.from === fromId && e.to === toId) ||
+      (e.from === toId && e.to === fromId)
+    )
+    const line = (edge?.line || '?').split(',')[0].trim()
+    map[fromId] = line
+    map[toId] = line
+  }
+  return map
+})
+
+// 🎨 Couleur des stations selon la ligne réellement empruntée
+const getStationColor = (station) => {
+  const stationId = String(station.id)
+  if (!props.path || !props.path.includes(stationId)) return 'gray'
+  const line = pathLineByStation.value[stationId]
+  return lineColors[line] || 'white'
+}
+
+// 🧱 Segments ACPM projetés
 const getMSTSegments = computed(() => {
+  projectionKey.value  // ✅ pour forcer la mise à jour sur déplacement
+
   return mstEdges.value.map(({ src, dst, line, weight, name1, name2 }) => {
     const s1 = props.stations.find(s => s.id === src)
     const s2 = props.stations.find(s => s.id === dst)
     if (!s1 || !s2) return null
+
+    const p1 = project.value(s1.x, s1.y)
+    const p2 = project.value(s2.x, s2.y)
+
     return {
-      x1: s1.x, y1: s1.y,
-      x2: s2.x, y2: s2.y,
+      x1: p1.x,
+      y1: p1.y,
+      x2: p2.x,
+      y2: p2.y,
       color: lineColor(line),
       tooltip: `${name1} ↔ ${name2}\nLigne ${line}\n${weight} sec`
     }
@@ -156,35 +343,8 @@ const getMSTSegments = computed(() => {
 })
 
 
-// 🔁 Segments pour les trajets Dijkstra
-const getSegmentsByLine = () => {
-  if (!props.path || props.path.length < 2 || !props.stations.length) return []
 
-  const segments = []
-  for (let i = 0; i < props.path.length - 1; i++) {
-    const fromId = props.path[i]
-    const toId = props.path[i + 1]
-
-    const fromStation = props.stations.find(s => s.id === fromId)
-    const toStation = props.stations.find(s => s.id === toId)
-
-    if (!fromStation || !toStation) continue
-
-    // Trouver l'arête utilisée
-    const edge = props.edges?.find(e => e.from === fromId && e.to === toId)
-    const line = edge?.line || '?'
-
-    segments.push({
-      line,
-      points: `${fromStation.x},${fromStation.y} ${toStation.x},${toStation.y}`
-    })
-  }
-
-  return segments
-}
-
-
-// 📡 Appel à l'API /mst
+// 📦 Requête pour récupérer l'ACPM
 const loadMST = async () => {
   mstEdges.value = []
   mstTotalWeight.value = null
@@ -192,18 +352,14 @@ const loadMST = async () => {
   try {
     const res = await fetch('http://127.0.0.1:5000/mst')
     const data = await res.json()
-    const edges = data.edges // [src, dst, weight]
+    const edges = data.edges
     mstTotalWeight.value = data.total_weight
 
-    for (let i = 0; i < edges.length; i++) {
-      const [src, dst, weight] = edges[i]
+    for (let [src, dst, weight] of edges) {
       const s1 = props.stations.find(s => s.id === src)
       const s2 = props.stations.find(s => s.id === dst)
-
       let line = null
-      if (s1 && s2) {
-        line = s1.line === s2.line ? s1.line : (s1.line || s2.line)
-      }
+      if (s1 && s2) line = s1.line === s2.line ? s1.line : (s1.line || s2.line)
 
       mstEdges.value.push({
         src,
@@ -220,5 +376,18 @@ const loadMST = async () => {
     alert("Erreur lors du chargement de l'ACPM.")
   }
 }
+
+
+
+
+
+
+
+
+watch(projectedStations, (val) => {
+  console.log("📍 Stations projetées :", val.slice(0, 3)) // pour voir les 3 premières
+})
+
+
 
 </script>
