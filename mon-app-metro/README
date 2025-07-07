@@ -1,15 +1,27 @@
 Lancer l'application
     cd .\mon-app-metro\back-end\
-    app.py
+    python app.py
 
 Lancer l'application
+    cd mon-app-metro\back-end
+    python app.py
     cd .\mon-app-metro\mon-app-metro\
     npm run dev
 
 
 
-Pour créer le fichier json des stations de metro
-    cd C:\Users\aigle\Downloads\mon-app-metro\mon-app-metro\Information
-    python convert_to_json.py
-    copy stations.json ..\..\public\
+Pour créer le fichier json des stations de metro avec :
+        - nodes: noms des stations
+        - edges: couples (station1, station2, durée en secondes)
+    
+    cd mon-app-metro\back-end
+    python gtfs_to_graph.py
+    copy graphe_metro_v2.json ..\mon-app-metro\public\
+    
 
+
+
+
+
+extention
+   pip install networkx (pour la représentation des graphes)
