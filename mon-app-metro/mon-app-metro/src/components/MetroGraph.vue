@@ -43,17 +43,18 @@
 
     <!-- ⚪ Stations -->
     <circle
-      v-for="station in stations"
-      :key="station.id"
-      :cx="station.x"
-      :cy="station.y"
-      r="4"
-      :fill="path.includes(station.id) ? 'white' : 'gray'"
-      stroke="black"
-      stroke-width="1"
-    >
-      <title>{{ station.name }} (Ligne {{ station.line }})</title>
-    </circle>
+  v-for="station in stations"
+  :key="station.id"
+  :cx="station.x"
+  :cy="station.y"
+  r="4"
+  :fill="path.includes(station.id) ? 'white' : 'gray'"
+  stroke="black"
+  stroke-width="1"
+>
+  <title>{{ station.name }} (Ligne {{ station.line }})</title>
+</circle>
+
   </svg>
 </template>
 
@@ -118,7 +119,8 @@ import { ref, computed } from 'vue'
 
 const props = defineProps({
   stations: Array,
-  path: Array // pour les trajets Dijkstra
+  path: Array,
+  edges: Array  // nécessaire pour getSegmentsByLine
 })
 
 const width = 950
@@ -159,37 +161,28 @@ const getSegmentsByLine = () => {
   if (!props.path || props.path.length < 2 || !props.stations.length) return []
 
   const segments = []
-  let currentLine = null
-  let currentPoints = []
+  for (let i = 0; i < props.path.length - 1; i++) {
+    const fromId = props.path[i]
+    const toId = props.path[i + 1]
 
-  for (let i = 0; i < props.path.length; i++) {
-    const id = props.path[i]
-    const station = props.stations.find(s => s.id === id)
-    if (!station) continue
+    const fromStation = props.stations.find(s => s.id === fromId)
+    const toStation = props.stations.find(s => s.id === toId)
 
-    if (!currentLine) {
-      currentLine = station.line
-    }
+    if (!fromStation || !toStation) continue
 
-    if (station.line !== currentLine || i === props.path.length - 1) {
-      if (i === props.path.length - 1) currentPoints.push(station)
+    // Trouver l'arête utilisée
+    const edge = props.edges?.find(e => e.from === fromId && e.to === toId)
+    const line = edge?.line || '?'
 
-      if (currentPoints.length > 1) {
-        segments.push({
-          line: currentLine,
-          points: currentPoints.map(p => `${p.x},${p.y}`).join(" ")
-        })
-      }
-
-      currentLine = station.line
-      currentPoints = [station]
-    } else {
-      currentPoints.push(station)
-    }
+    segments.push({
+      line,
+      points: `${fromStation.x},${fromStation.y} ${toStation.x},${toStation.y}`
+    })
   }
 
   return segments
 }
+
 
 // 📡 Appel à l'API /mst
 const loadMST = async () => {
