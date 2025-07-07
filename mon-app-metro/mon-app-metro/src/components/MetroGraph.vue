@@ -96,7 +96,7 @@ circle {
   r: 6;
   stroke: white;
   stroke-width: 2;
-  filter: drop-shadow(0 0 4px white) drop-shadow(0 0 2px white);
+  filter: drop-shadow(0 0 1px white) drop-shadow(0 0 3px white);
   transition: r 0.2s;
 }
 
