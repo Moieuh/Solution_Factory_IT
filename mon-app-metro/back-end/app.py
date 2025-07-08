@@ -115,9 +115,25 @@ def shortest_path():
     if not path or path[0] != source:
         return jsonify({"error": "Aucun chemin trouvé"}), 404
 
+    # --- Ajout calcul émissions CO₂ ---
+    # Hypothèses :
+    # - Métro : 3.2 gCO₂/passager/km (source ADEME)
+    # - Voiture : 120 gCO₂/passager/km (moyenne)
+    # - Vitesse métro : 25 km/h (moyenne, arrêts inclus)
+    # - Conversion : durée (s) → distance (km)
+    total_time = dist[destination]
+    speed_metro_kmh = 25
+    speed_metro_ms = speed_metro_kmh * 1000 / 3600
+    distance_km = (total_time * speed_metro_ms) / 1000 if total_time else 0
+
+    co2_metro = round(distance_km * 3.2, 1)
+    co2_car = round(distance_km * 120, 1)
+
     return jsonify({
         "path": path,
-        "total_time": dist[destination]
+        "total_time": total_time,
+        "co2_metro": co2_metro,
+        "co2_car": co2_car
     })
 
 

@@ -50,6 +50,10 @@ const showDepartureInput = ref(false)
 const desiredArrival = ref('')
 const computedDeparture = ref(null)
 
+// Ajout pour CO₂
+const co2Metro = ref(null)
+const co2Car = ref(null)
+
 const fetchPath = async () => {
   if (!start.value || !end.value) return
 
@@ -70,6 +74,8 @@ const fetchPath = async () => {
       const arrival = new Date(now.getTime() + data.total_time * 1000)
       estimatedArrival.value = arrival.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       estimatedDuration.value = data.total_time
+      co2Metro.value = data.co2_metro
+      co2Car.value = data.co2_car
       // Émet le chemin pour le parent
       emit('path-calculated', {
         source,
@@ -81,12 +87,16 @@ const fetchPath = async () => {
       estimatedArrival.value = null
       estimatedDuration.value = null
       computedDeparture.value = null
+      co2Metro.value = null
+      co2Car.value = null
       emit('path-calculated', { source, destination, path: [], total_time: null })
     }
   } catch (e) {
     estimatedArrival.value = null
     estimatedDuration.value = null
     computedDeparture.value = null
+    co2Metro.value = null
+    co2Car.value = null
     emit('path-calculated', { source, destination, path: [], total_time: null })
   }
 }
@@ -202,5 +212,19 @@ const computeDepartureTime = () => {
     >
       {{ showDepartureInput ? 'Masquer' : 'Déduire l\'heure de départ à partir de l\'heure d\'arrivée' }}
     </button>
+
+    <!-- Bloc émissions CO₂ -->
+    <div v-if="co2Metro !== null && co2Car !== null" class="flex justify-center gap-8 mt-4">
+      <div class="flex items-center gap-2 bg-green-900/60 px-3 py-2 rounded">
+        <span class="text-green-400 text-xl">🍃</span>
+        <span class="font-bold text-green-200">{{ co2Metro }} gCO₂</span>
+        <span class="text-xs text-green-300 ml-1">Métro</span>
+      </div>
+      <div class="flex items-center gap-2 bg-gray-700/60 px-3 py-2 rounded">
+        <span class="text-gray-300 text-xl">🚗</span>
+        <span class="font-bold text-gray-200">{{ co2Car }} gCO₂</span>
+        <span class="text-xs text-gray-300 ml-1">Voiture</span>
+      </div>
+    </div>
   </div>
 </template>
