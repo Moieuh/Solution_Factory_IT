@@ -4,6 +4,7 @@ import json
 import networkx as nx
 from collections import defaultdict
 import heapq
+import time
 
 app = Flask(__name__)
 CORS(app)
@@ -90,6 +91,9 @@ def shortest_path():
     if source not in nodes or destination not in nodes:
         return jsonify({"error": "Station inconnue"}), 400
 
+    # Mesure du temps d'exécution
+    t0 = time.perf_counter()
+
     dist = {n: float('inf') for n in nodes}
     prev = {n: None for n in nodes}
     dist[source] = 0
@@ -112,6 +116,9 @@ def shortest_path():
         path.insert(0, u)
         u = prev[u]
 
+    t1 = time.perf_counter()
+    algo_time_ms = round((t1 - t0) * 1000, 2)
+
     if not path or path[0] != source:
         return jsonify({"error": "Aucun chemin trouvé"}), 404
 
@@ -133,7 +140,8 @@ def shortest_path():
         "path": path,
         "total_time": total_time,
         "co2_metro": co2_metro,
-        "co2_car": co2_car
+        "co2_car": co2_car,
+        "algo_time_ms": algo_time_ms
     })
 
 

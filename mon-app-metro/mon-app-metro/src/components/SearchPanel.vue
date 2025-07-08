@@ -53,6 +53,7 @@ const computedDeparture = ref(null)
 // Ajout pour CO₂
 const co2Metro = ref(null)
 const co2Car = ref(null)
+const algoTimeMs = ref(null)
 
 const fetchPath = async () => {
   if (!start.value || !end.value) return
@@ -76,6 +77,7 @@ const fetchPath = async () => {
       estimatedDuration.value = data.total_time
       co2Metro.value = data.co2_metro
       co2Car.value = data.co2_car
+      algoTimeMs.value = data.algo_time_ms
       // Émet le chemin pour le parent
       emit('path-calculated', {
         source,
@@ -89,6 +91,7 @@ const fetchPath = async () => {
       computedDeparture.value = null
       co2Metro.value = null
       co2Car.value = null
+      algoTimeMs.value = null
       emit('path-calculated', { source, destination, path: [], total_time: null })
     }
   } catch (e) {
@@ -97,6 +100,7 @@ const fetchPath = async () => {
     computedDeparture.value = null
     co2Metro.value = null
     co2Car.value = null
+    algoTimeMs.value = null
     emit('path-calculated', { source, destination, path: [], total_time: null })
   }
 }
@@ -225,6 +229,11 @@ const computeDepartureTime = () => {
         <span class="font-bold text-gray-200">{{ co2Car }} gCO₂</span>
         <span class="text-xs text-gray-300 ml-1">Voiture</span>
       </div>
+    </div>
+
+    <!-- Temps d'exécution de l'algo -->
+    <div v-if="algoTimeMs !== null" class="text-center text-xs text-gray-400 mt-2">
+      ⏱️ Calcul du trajet : <span class="font-bold">{{ algoTimeMs }}</span> ms
     </div>
   </div>
 </template>
