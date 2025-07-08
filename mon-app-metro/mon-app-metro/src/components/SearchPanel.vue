@@ -43,13 +43,63 @@ const filteredEndStations = computed(() => groupedStations(endQuery.value, start
 
 const extractRealId = (val) => val.split('__')[0]
 
-const fetchPath = () => {
+// Ajout pour afficher l'heure d'arrivée estimée
+const estimatedArrival = ref(null)
+const estimatedDuration = ref(null)
+const showDepartureInput = ref(false)
+const desiredArrival = ref('')
+const computedDeparture = ref(null)
+
+const fetchPath = async () => {
   if (!start.value || !end.value) return
 
-  emit('path-calculated', {
-    source: extractRealId(start.value),
-    destination: extractRealId(end.value)
-  })
+  // Appel l'API pour obtenir le chemin et la durée
+  const source = extractRealId(start.value)
+  const destination = extractRealId(end.value)
+  try {
+    const res = await fetch('http://127.0.0.1:5000/shortest-path', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, destination })
+    })
+    const data = await res.json()
+    if (data.path && data.total_time != null) {
+      // Heure de départ actuelle
+      const now = new Date()
+      // Ajoute la durée du trajet (en secondes)
+      const arrival = new Date(now.getTime() + data.total_time * 1000)
+      estimatedArrival.value = arrival.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      estimatedDuration.value = data.total_time
+      // Émet le chemin pour le parent
+      emit('path-calculated', {
+        source,
+        destination,
+        path: data.path,
+        total_time: data.total_time
+      })
+    } else {
+      estimatedArrival.value = null
+      estimatedDuration.value = null
+      computedDeparture.value = null
+      emit('path-calculated', { source, destination, path: [], total_time: null })
+    }
+  } catch (e) {
+    estimatedArrival.value = null
+    estimatedDuration.value = null
+    computedDeparture.value = null
+    emit('path-calculated', { source, destination, path: [], total_time: null })
+  }
+}
+
+const computeDepartureTime = () => {
+  if (!desiredArrival.value || !estimatedDuration.value) return
+  // desiredArrival au format "HH:mm"
+  const [h, m] = desiredArrival.value.split(':').map(Number)
+  const arrivalDate = new Date()
+  arrivalDate.setHours(h, m, 0, 0)
+  // Soustraire la durée du trajet (en secondes)
+  const departureDate = new Date(arrivalDate.getTime() - estimatedDuration.value * 1000)
+  computedDeparture.value = departureDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 </script>
 
@@ -116,6 +166,41 @@ const fetchPath = () => {
       :disabled="!start || !end"
     >
       🔍 Rechercher
+    </button>
+
+    <!-- Affiche toujours le bloc Heure d'arrivée estimée, même si pas encore calculée -->
+    <div class="mt-4 text-green-400 text-center">
+      Heure d'arrivée estimée :
+      <span class="font-bold">
+        {{ estimatedArrival ? estimatedArrival : '--:--' }}
+      </span>
+    </div>
+
+    <div v-if="showDepartureInput" class="mt-4">
+      <label class="block mb-2 text-white">Heure d'arrivée souhaitée :</label>
+      <input
+        type="time"
+        v-model="desiredArrival"
+        class="w-full p-2 rounded bg-gray-700 text-white"
+      />
+      <button
+        class="mt-2 w-full bg-purple-600 hover:bg-purple-700 p-2 rounded font-semibold"
+        @click="computeDepartureTime"
+        :disabled="!desiredArrival || !estimatedDuration"
+      >
+        Calculer l'heure de départ
+      </button>
+      <div v-if="computedDeparture" class="mt-2 text-blue-300 text-center">
+        Heure de départ recommandée : <span class="font-bold">{{ computedDeparture }}</span>
+      </div>
+    </div>
+
+    <button
+      class="mt-4 w-full bg-gray-700 hover:bg-gray-600 p-2 rounded text-sm"
+      @click="showDepartureInput = !showDepartureInput"
+      v-if="estimatedDuration"
+    >
+      {{ showDepartureInput ? 'Masquer' : 'Déduire l\'heure de départ à partir de l\'heure d\'arrivée' }}
     </button>
   </div>
 </template>

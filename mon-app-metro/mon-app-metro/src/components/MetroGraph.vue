@@ -69,9 +69,6 @@
 </template>
 
 <style scoped>
-/* From Uiverse.io by SelfMadeSystem */ 
-/* Yoinked from CodePen, but improved the animation
-so that it is smooth among other more minor things */
 
 .codepen-button {
   display: block;
@@ -173,7 +170,6 @@ const props = defineProps({
 const mstEdges = ref([])
 const mstTotalWeight = ref(null)
 
-// 📌 Carte Leaflet et projecteur
 const mapRef = ref(null)
 const project = ref(() => ({ x: 0, y: 0 }))
 
@@ -203,10 +199,10 @@ onMounted(() => {
 
 
     projectionKey.value++
-    console.log("🔄 updateProjection called", new Date().toLocaleTimeString())
+    console.log(" updateProjection called", new Date().toLocaleTimeString())
   }
 
-  // ✅ Appelé sur chaque déplacement (pan)
+  //  Appelé sur chaque déplacement (pan)
   map.on('move', () => {
     const pane = map.getPane('overlayPane')
     const svg = document.getElementById('overlay-svg')
@@ -215,7 +211,7 @@ onMounted(() => {
       svg.style.transform = transform
     }
 
-    updateProjection() // ✅ crucial
+    updateProjection() 
   })
 
   map.on('zoom', updateProjection)
