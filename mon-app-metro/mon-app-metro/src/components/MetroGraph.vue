@@ -7,7 +7,12 @@
         <span>Afficher l'ACPM</span>
       </button>
       <div v-if="mstTotalWeight !== null" class="text-sm mt-1">
-        Poids total de l’ACPM : {{ mstTotalWeight }} secondes
+        Poids total de l’ACPM : 
+        <template v-if="mstTotalWeight !== null">
+          {{ Math.floor(mstTotalWeight / 3600) }}h 
+          {{ Math.floor((mstTotalWeight % 3600) / 60) }}m 
+          {{ Math.floor(mstTotalWeight % 60) }}s
+        </template>
       </div>
     </div>
 
